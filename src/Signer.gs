@@ -24,6 +24,7 @@
  * https://github.com/ddo/oauth-1.0a
  * The cryptojs dependency was removed in favor of native Apps Script functions.
  * A new parameter was added to authorize() for additional oauth params.
+ * Support for realm authorization parameter was added in toHeader().
  */
 
 (function(global) {
@@ -69,7 +70,11 @@
         };
         break;
       case 'RSA-SHA1':
-        throw new Error('oauth-1.0a does not support this signature method right now. Coming Soon...');
+        this.hash = function(base_string, key) {
+          var sig = Utilities.computeRsaSignature(Utilities.RsaAlgorithm.RSA_SHA_1, base_string, key);
+          return Utilities.base64Encode(sig);
+        };
+        break;
       default:
         throw new Error('The OAuth 1.0a protocol defines three signature methods: HMAC-SHA1, RSA-SHA1, and PLAINTEXT only');
     }
@@ -170,6 +175,13 @@
   OAuth.prototype.getSigningKey = function(token_secret) {
     token_secret = token_secret || '';
 
+    // Don't percent encode the signing key (PKCS#8 PEM private key) when using
+    // the RSA-SHA1 method. The token secret is never used with the RSA-SHA1
+    // method.
+    if (this.signature_method === 'RSA-SHA1') {
+      return this.consumer.secret;
+    }
+
     if(!this.last_ampersand && !token_secret) {
       return this.percentEncode(this.consumer.secret);
     }
@@ -192,12 +204,12 @@
   * @return {Object}
   */
   OAuth.prototype.deParam = function(string) {
-    var arr = decodeURIComponent(string).split('&');
+    var arr = string.replace(/\+/g, ' ').split('&');
     var data = {};
 
     for(var i = 0; i < arr.length; i++) {
       var item = arr[i].split('=');
-      data[item[0]] = item[1];
+      data[item[0]] = decodeURIComponent(item[1]);
     }
     return data;
   };
@@ -256,7 +268,7 @@
     var header_value = 'OAuth ';
 
     for(var key in oauth_data) {
-      if (key.indexOf('oauth_') === -1)
+      if (key !== 'realm' && key.indexOf('oauth_') === -1)
         continue;
       header_value += this.percentEncode(key) + '="' + this.percentEncode(oauth_data[key]) + '"' + this.parameter_seperator;
     }

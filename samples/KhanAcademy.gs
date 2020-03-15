@@ -2,19 +2,13 @@ var CONSUMER_KEY = '...';
 var CONSUMER_SECRET = '...';
 
 /**
- * Authorizes and makes a request to the Twitter API.
+ * Authorizes and makes a request to the TripIt API.
  */
 function run() {
   var service = getService();
   if (service.hasAccess()) {
-    var url = 'https://api.twitter.com/1.1/statuses/update.json';
-    var payload = {
-      status: 'It\'s a tweet!'
-    };
-    var response = service.fetch(url, {
-      method: 'post',
-      payload: payload
-    });
+    var url = 'https://api.khanacademy.org/api/v1/user';
+    var response = service.fetch(url);
     var result = JSON.parse(response.getContentText());
     Logger.log(JSON.stringify(result, null, 2));
   } else {
@@ -22,7 +16,7 @@ function run() {
     Logger.log('Open the following URL and re-run the script: %s',
         authorizationUrl);
   }
-} 
+}
 
 /**
  * Reset the authorization state, so that it can be re-tested.
@@ -36,11 +30,11 @@ function reset() {
  * Configures the service.
  */
 function getService() {
-  return OAuth1.createService('Twitter')
+  return OAuth1.createService('TripIt')
       // Set the endpoint URLs.
-      .setAccessTokenUrl('https://api.twitter.com/oauth/access_token')
-      .setRequestTokenUrl('https://api.twitter.com/oauth/request_token')
-      .setAuthorizationUrl('https://api.twitter.com/oauth/authorize')
+      .setRequestTokenUrl('https://www.khanacademy.org/api/auth2/request_token')
+      .setAuthorizationUrl('https://www.khanacademy.org/api/auth2/authorize')
+      .setAccessTokenUrl('https://www.khanacademy.org/api/auth2/access_token')
 
       // Set the consumer key and secret.
       .setConsumerKey(CONSUMER_KEY)
@@ -49,17 +43,16 @@ function getService() {
       // Set the name of the callback function in the script referenced
       // above that should be invoked to complete the OAuth flow.
       .setCallbackFunction('authCallback')
-  
-      // Using a cache will reduce the need to read from 
-      // the property store and may increase performance.
-      .setCache(CacheService.getUserCache())
 
       // Set the property store where authorized tokens should be persisted.
-      .setPropertyStore(PropertiesService.getUserProperties());
+      .setPropertyStore(PropertiesService.getUserProperties())
+  
+      // Specify that the OAuth parameters should be passed as query parameters.
+      .setParamLocation('uri-query');
 }
 
 /**
- * Handles the OAuth callback.
+ * Handles the OAuth2 callback.
  */
 function authCallback(request) {
   var service = getService();
